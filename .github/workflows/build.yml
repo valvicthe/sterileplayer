@@ -1,0 +1,31 @@
+name: Build Quellqa Desktop
+on: [push]
+
+jobs:
+  build-da-music:
+    runs-on: windows-latest # Compiles a Windows executable (.exe)
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-size: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Compile Web Code
+        run: npm run build
+
+      - name: Package Into Desktop App
+        run: npx electron-builder --windows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Finished App
+        uses: actions/upload-artifact@v4
+        with:
+          name: Quellqa-Desktop-Windows
+          path: dist/*.exe
