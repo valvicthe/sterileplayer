@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipForward, SkipBack, Heart, Sparkles, Smile, Bomb } from 'lucide-react';
-// @ts-ignore
-import jsmediatags from 'jsmediatags';
+import { Play, Pause, SkipForward, SkipBack, Heart, Sparkles, FolderPlus, Disc, Volume2, X, Minus } from 'lucide-react';
+import * as musicMetadata from 'music-metadata-browser';
 
 interface Track {
   id: number;
@@ -10,24 +9,22 @@ interface Track {
   album: string;
   trackNo: number;
   url: string;
-  coverArt: string; // Base64 Data URL for real embedded image rendering
+  coverArt: string;
 }
 
 export default function QuellqaAudio() {
-  const version = "v1.1.0-KawaiiDeadly";
+  const version = "v1.3.0-Boutique";
   
-  // --- Audio States ---
   const [playlist, setPlaylist] = useState<Track[]>([]);
   const [currentIdx, setCurrentIdx] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   
-  // High-Performance EQ Targets
-  const [preamp, setPreamp] = useState<number>(0);
-  const [bass, setBass] = useState<number>(6); // Cranking defaults
-  const [mid, setMid] = useState<number>(-2);
-  const [treble, setTreble] = useState<number>(4);
+  // Custom tuned aggressive ear-shattering DSP parameters
+  const [preamp, setPreamp] = useState<number>(-2);
+  const [bass, setBass] = useState<number>(8); // Pure heavy analog rumble
+  const [mid, setMid] = useState<number>(-3);
+  const [treble, setTreble] = useState<number>(5); // Sharp presence
 
-  // --- Audio Web Anchors ---
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
@@ -37,19 +34,23 @@ export default function QuellqaAudio() {
   const midNodeRef = useRef<BiquadFilterNode | null>(null);
   const trebleNodeRef = useRef<BiquadFilterNode | null>(null);
 
-  // Dynamic window title updates
   useEffect(() => {
     if (currentIdx !== -1 && playlist[currentIdx]) {
-      document.title = `🌸 ${playlist[currentIdx].title} | Quellqa`;
+      document.title = `🌸 ${playlist[currentIdx].title} — Quellqa`;
     } else {
-      document.title = `✨ Quellqa Audio ✨`;
+      document.title = `Quellqa Audio`;
     }
   }, [currentIdx, playlist]);
 
-  // Audio Graph Initialization
+  const closeWindow = () => {
+    try { const { ipcRenderer } = window.require('electron'); ipcRenderer.send('window-control', 'close'); } catch(e){}
+  };
+  const minimizeWindow = () => {
+    try { const { ipcRenderer } = window.require('electron'); ipcRenderer.send('window-control', 'minimize'); } catch(e){}
+  };
+
   const initAudioGraph = () => {
     if (!audioRef.current || audioCtxRef.current) return;
-
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     const ctx = new AudioContextClass();
     audioCtxRef.current = ctx;
@@ -63,14 +64,14 @@ export default function QuellqaAudio() {
     const trebleNode = ctx.createBiquadFilter();
 
     bassNode.type = 'lowshelf';
-    bassNode.frequency.value = 180;
+    bassNode.frequency.value = 160;
 
     midNode.type = 'peaking';
-    midNode.Q.value = 1.2;
-    midNode.frequency.value = 1200;
+    midNode.Q.value = 1.4;
+    midNode.frequency.value = 1100;
 
     trebleNode.type = 'highshelf';
-    trebleNode.frequency.value = 4500;
+    trebleNode.frequency.value = 4200;
 
     source.connect(preampNode);
     preampNode.connect(bassNode);
@@ -98,65 +99,45 @@ export default function QuellqaAudio() {
 
   useEffect(() => { updateDspValues(); }, [preamp, bass, mid, treble]);
 
-  // ----------------------------------------------------
-  // 🔮 BINARY METADATA ENGINE (Fixes Missing Album Art/Song Info)
-  // ----------------------------------------------------
   const handleFolderImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     const loadedTracks: Track[] = [];
     
-    // Process files through an asynchronous sequence mapper
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.name.toLowerCase().endsWith('.mp3') || file.name.toLowerCase().endsWith('.wav')) {
-        
-        await new Promise<void>((resolve) => {
-          jsmediatags.read(file, {
-            onSuccess: (tag: any) => {
-              const tags = tag.tags;
-              
-              // Extract and parse binary embedded artwork image metadata
-              let coverArtUrl = "";
-              if (tags.picture) {
-                const { data, format } = tags.picture;
-                let base64String = "";
-                for (let j = 0; j < data.length; j++) {
-                  base64String += String.fromCharCode(data[j]);
-                }
-                coverArtUrl = `data:${format};base64,${btoa(base64String)}`;
-              }
-
-              loadedTracks.push({
-                id: i,
-                title: tags.title || file.name.replace(/\.[^/.]+$/, ""),
-                artist: tags.artist || "Unknown Cutie",
-                album: tags.album || "Sweet Single",
-                trackNo: tags.track ? parseInt(tags.track, 10) : i + 1,
-                url: URL.createObjectURL(file),
-                coverArt: coverArtUrl
-              });
-              resolve();
-            },
-            onError: () => {
-              // Fallback parameters if metadata blocks are entirely missing or corrupted
-              loadedTracks.push({
-                id: i,
-                title: file.name.replace(/\.[^/.]+$/, ""),
-                artist: "Unknown Cutie",
-                album: "Sweet Single",
-                trackNo: i + 1,
-                url: URL.createObjectURL(file),
-                coverArt: ""
-              });
-              resolve();
-            }
+        try {
+          const metadata = await musicMetadata.parseBlob(file);
+          const common = metadata.common;
+          let coverArtUrl = "";
+          if (common.picture && common.picture.length > 0) {
+            const pic = common.picture[0];
+            const base64String = btoa(new Uint8Array(pic.data).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+            coverArtUrl = `data:${pic.format};base64,${base64String}`;
+          }
+          loadedTracks.push({
+            id: i,
+            title: common.title || file.name.replace(/\.[^/.]+$/, ""),
+            artist: common.artist || "Unknown Cutie",
+            album: common.album || "Single Piece",
+            trackNo: common.track.no || i + 1,
+            url: URL.createObjectURL(file),
+            coverArt: coverArtUrl
           });
-        });
+        } catch (err) {
+          loadedTracks.push({
+            id: i,
+            title: file.name.replace(/\.[^/.]+$/, ""),
+            artist: "Unknown Cutie",
+            album: "Single Piece",
+            trackNo: i + 1,
+            url: URL.createObjectURL(file),
+            coverArt: ""
+          });
+        }
       }
     }
-
     loadedTracks.sort((a, b) => a.trackNo - b.trackNo);
     setPlaylist(loadedTracks);
     if (loadedTracks.length > 0) setCurrentIdx(0);
@@ -165,16 +146,17 @@ export default function QuellqaAudio() {
   const startTrackPipeline = (idx: number) => {
     setCurrentIdx(idx);
     setIsPlaying(true);
+    if (audioCtxRef.current?.state === 'suspended') { audioCtxRef.current.resume(); } else { initAudioGraph(); }
 
-    if (audioCtxRef.current?.state === 'suspended') {
-      audioCtxRef.current.resume();
-    } else {
-      initAudioGraph();
-    }
+    const track = playlist[idx];
+    try {
+      const { ipcRenderer } = window.require('electron');
+      ipcRenderer.send('update-rpc', { title: track.title, artist: track.artist, album: track.album, isPlaying: true });
+    } catch (e) {}
 
     setTimeout(() => {
       if (audioRef.current) {
-        audioRef.current.src = playlist[idx].url;
+        audioRef.current.src = track.url;
         audioRef.current.play().catch(err => console.log(err));
       }
     }, 50);
@@ -183,181 +165,241 @@ export default function QuellqaAudio() {
   const togglePlayState = () => {
     if (playlist.length === 0) return;
     if (currentIdx === -1) { startTrackPipeline(0); return; }
+    const track = playlist[currentIdx];
+    let nextPlayState = !isPlaying;
+
     if (isPlaying) { audioRef.current?.pause(); setIsPlaying(false); }
     else { audioRef.current?.play(); setIsPlaying(true); }
+
+    try {
+      const { ipcRenderer } = window.require('electron');
+      ipcRenderer.send('update-rpc', { title: track.title, artist: track.artist, album: track.album, isPlaying: nextPlayState });
+    } catch (e) {}
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#fff5f7] text-[#4a354f] overflow-hidden selection:bg-[#ffdae0]">
-      <audio ref={audioRef} onEnded={nextTrack} crossOrigin="anonymous" />
+    <div className="flex flex-col h-screen bg-[#fffcfd] text-[#2d1e30] overflow-hidden antialiased">
+      <audio ref={audioRef} onEnded={() => { if (currentIdx < playlist.length - 1) startTrackPipeline(currentIdx + 1); }} crossOrigin="anonymous" />
 
+      {/* 🎀 CUSTOM HIGH-END DESIGNER TITLEBAR */}
+      <div className="h-10 bg-[#ffaec1] border-b-2 border-[#ff9cb4] flex items-center justify-between px-4 titlebar-drag select-none shrink-0 z-50">
+        {/* Mac-style Window Dot Actions */}
+        <div className="flex items-center gap-2 titlebar-nodrag">
+          <button onClick={closeWindow} className="w-3.5 h-3.5 rounded-full bg-[#ff5f56] hover:bg-[#ff4a40] flex items-center justify-center transition group border border-black/10">
+            <X size={8} className="text-black/40 opacity-0 group-hover:opacity-100 transition" />
+          </button>
+          <button onClick={minimizeWindow} className="w-3.5 h-3.5 rounded-full bg-[#ffbd2e] hover:bg-[#ffac1c] flex items-center justify-center transition group border border-black/10">
+            <Minus size={8} className="text-black/40 opacity-0 group-hover:opacity-100 transition" />
+          </button>
+          <div className="w-3.5 h-3.5 rounded-full bg-[#27c93f] opacity-40 border border-black/10" />
+        </div>
+
+        {/* Dynamic Center Engine Title badge */}
+        <div className="text-[11px] font-black tracking-widest text-[#4a2e37] uppercase bg-white/40 px-4 py-0.5 rounded-full border border-white/40">
+          {currentIdx !== -1 ? `🍭 playing: ${playlist[currentIdx].title}` : '✨ QUELLQA DECK DEVIATION ✨'}
+        </div>
+
+        <div className="text-[10px] font-mono font-bold text-[#6e4651] pr-2">
+          {version}
+        </div>
+      </div>
+
+      {/* MAIN CONTENT SPLIT LAYER */}
       <div className="flex flex-1 overflow-hidden">
         
-        {/* --- KAWAII SIDEBAR (DEADLY EQUALIZER ENGINE) --- */}
-        <div className="w-72 bg-[#ffaec1] flex flex-col items-center py-6 px-4 border-r-4 border-[#ff8fa9] shadow-inner">
-          <div className="flex items-center gap-2 mb-6 bg-white/40 px-4 py-2 rounded-full border border-white/60">
-            <Bomb className="text-[#d14d72] animate-bounce" size={20} />
-            <h1 className="text-xl font-black tracking-wider text-[#4a354f]">QUELLQA</h1>
-            <Sparkles className="text-[#ffd25a]" size={16} />
+        {/* 🎛️ ASYMMETRICAL BOUTIQUE AUDIO ENGINE PANEL */}
+        <div className="w-80 bg-[#fff5f7] flex flex-col py-6 px-5 border-r-2 border-[#ffdae0] justify-between">
+          
+          {/* Header branding block */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-[10px] font-black uppercase tracking-wider text-[#a88691] bg-[#ffeaee] px-2 py-0.5 rounded-md">Boutique Hardware</span>
+              <Heart size={14} className="text-[#ff4d79]" fill="currentColor" />
+            </div>
+            <h2 className="text-2xl font-black tracking-tighter text-[#3a1d28] leading-none mb-1">Analog EQ</h2>
+            <p className="text-[11px] text-[#91757f] font-medium leading-tight">High-precision IIR filters mapped to hardware constraints.</p>
           </div>
 
-          {/* Pre-Amp Volume Adjustments Slider */}
-          <div className="w-full px-4 mb-6 bg-white/50 p-3 rounded-2xl border border-[#ff8fa9]">
-            <div className="flex justify-between text-[11px] font-black tracking-wide text-[#734a70] mb-1">
-              <span>💖 PRE-AMP (GAIN)</span>
-              <span>{preamp > 0 ? `+${preamp}` : preamp} dB</span>
+          {/* 3-Band Equalizer Deck Configuration */}
+          <div className="my-auto bg-white rounded-3xl p-5 border-2 border-[#ffdae0] shadow-[0_8px_24px_rgba(255,218,224,0.3)] flex justify-between items-stretch h-56">
+            {/* Bass slider assembly */}
+            <div className="flex flex-col items-center justify-between">
+              <span className="text-[10px] font-mono font-bold text-[#ff4d79] bg-[#fff0f3] w-9 text-center py-0.5 rounded-md border border-[#ffcad4]">{bass > 0 ? `+${bass}` : bass}</span>
+              <div className="h-36 py-2 flex justify-center items-center">
+                <input 
+                  type="range" min="-12" max="12" step="0.5" value={bass} orient="vertical"
+                  onChange={(e) => setBass(parseFloat(e.target.value))}
+                  className="kawaii-slider kawaii-slider-vertical"
+                />
+              </div>
+              <span className="text-[10px] font-black tracking-tight text-[#ff4d79] uppercase">Sub-Bass</span>
+            </div>
+
+            {/* Mids slider assembly */}
+            <div className="flex flex-col items-center justify-between">
+              <span className="text-[10px] font-mono font-bold text-[#ff8736] bg-[#fff5ee] w-9 text-center py-0.5 rounded-md border border-[#ffe0cc]">{mid > 0 ? `+${mid}` : mid}</span>
+              <div className="h-36 py-2 flex justify-center items-center">
+                <input 
+                  type="range" min="-12" max="12" step="0.5" value={mid} orient="vertical"
+                  onChange={(e) => setMid(parseFloat(e.target.value))}
+                  className="kawaii-slider kawaii-slider-vertical accent-[#ff8736]"
+                />
+              </div>
+              <span className="text-[10px] font-black tracking-tight text-[#ff8736] uppercase">Mids</span>
+            </div>
+
+            {/* Treble slider assembly */}
+            <div className="flex flex-col items-center justify-between">
+              <span className="text-[10px] font-mono font-bold text-[#32c499] bg-[#eefffb] w-9 text-center py-0.5 rounded-md border border-[#ccfff4]">{treble > 0 ? `+${treble}` : treble}</span>
+              <div className="h-36 py-2 flex justify-center items-center">
+                <input 
+                  type="range" min="-12" max="12" step="0.5" value={treble} orient="vertical"
+                  onChange={(e) => setTreble(parseFloat(e.target.value))}
+                  className="kawaii-slider kawaii-slider-vertical accent-[#32c499]"
+                />
+              </div>
+              <span className="text-[10px] font-black tracking-tight text-[#32c499] uppercase">Presence</span>
+            </div>
+          </div>
+
+          {/* Master Pre-amp safety floor controller */}
+          <div className="bg-white rounded-2xl p-3 border border-[#ffdae0]">
+            <div className="flex justify-between text-[10px] font-black text-[#695058] mb-1.5 uppercase tracking-wide">
+              <div className="flex items-center gap-1"><Volume2 size={12}/><span>System Headroom</span></div>
+              <span className="font-mono">{preamp} dB</span>
             </div>
             <input 
               type="range" min="-12" max="12" step="0.5" value={preamp} 
               onChange={(e) => setPreamp(parseFloat(e.target.value))}
-              className="w-full accent-[#ff4d79] bg-white/80 h-2.5 rounded-lg appearance-none cursor-pointer border border-[#ff8fa9]"
+              className="w-full h-2 rounded-full appearance-none bg-[#fff0f2] cursor-pointer accent-[#ff4d79] kawaii-slider"
             />
-          </div>
-
-          {/* 3-Band Vertical Sliders Grid */}
-          <div className="flex justify-around items-stretch w-full flex-1 max-h-60 px-2 bg-white/30 rounded-2xl p-4 border border-dashed border-[#ff8fa9]">
-            {/* Bass Slider Node */}
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-black text-white bg-[#ff6b8b] px-1.5 py-0.5 rounded-md shadow-sm">{bass > 0 ? `+${bass}` : bass}</span>
-              <input 
-                type="range" min="-12" max="12" step="0.5" value={bass} orient="vertical"
-                onChange={(e) => setBass(parseFloat(e.target.value))}
-                className="accent-[#ff4d79] bg-white w-3 h-full rounded-full appearance-none cursor-pointer shadow-inner"
-              />
-              <span className="text-[11px] font-black text-center text-[#ff4d79]">BASS<br/><span className="text-[9px] text-[#8c5267]">180Hz</span></span>
-            </div>
-
-            {/* Mids Slider Node */}
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-black text-white bg-[#ff9f63] px-1.5 py-0.5 rounded-md shadow-sm">{mid > 0 ? `+${mid}` : mid}</span>
-              <input 
-                type="range" min="-12" max="12" step="0.5" value={mid} orient="vertical"
-                onChange={(e) => setMid(parseFloat(e.target.value))}
-                className="accent-[#ff8736] bg-white w-3 h-full rounded-full appearance-none cursor-pointer shadow-inner"
-              />
-              <span className="text-[11px] font-black text-center text-[#ff8736]">MIDS<br/><span className="text-[9px] text-[#8c5267]">1.2kHz</span></span>
-            </div>
-
-            {/* Treble Slider Node */}
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-[10px] font-black text-white bg-[#5cdbb5] px-1.5 py-0.5 rounded-md shadow-sm">{treble > 0 ? `+${treble}` : treble}</span>
-              <input 
-                type="range" min="-12" max="12" step="0.5" value={treble} orient="vertical"
-                onChange={(e) => setTreble(parseFloat(e.target.value))}
-                className="accent-[#32c499] bg-white w-3 h-full rounded-full appearance-none cursor-pointer shadow-inner"
-              />
-              <span className="text-[11px] font-black text-center text-[#32c499]">TREBLE<br/><span className="text-[9px] text-[#8c5267]">4.5kHz</span></span>
-            </div>
           </div>
         </div>
 
-        {/* --- MAIN DATA GRID: CHROMATIC SONGS TRACKLIST --- */}
-        <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <label className="flex items-center gap-2 bg-[#ff6b8b] hover:bg-[#ff4d79] text-white font-black px-5 py-3 rounded-2xl cursor-pointer transition transform hover:scale-102 active:scale-98 shadow-md border-b-4 border-[#d14d72]">
-              <Sparkles size={18} />
-              <span>Unpack Cute Tracks ✨</span>
+        {/* 🎵 ALBUM LOADER VIEWPORT & TRACKLIST COMPARTMENT */}
+        <div className="flex-1 flex flex-col p-6 bg-[#fffcfd]">
+          
+          {/* Action Trigger Row */}
+          <div className="flex justify-between items-center mb-5">
+            <div>
+              <h3 className="text-xs font-black tracking-wider uppercase text-[#a3808c]">Acoustic Library</h3>
+              <p className="text-lg font-black text-[#2e151f]">Loaded Tracks</p>
+            </div>
+            <label className="flex items-center gap-2 bg-[#1f1522] hover:bg-[#322436] text-white font-bold text-xs px-4 py-2.5 rounded-xl cursor-pointer transition shadow-md border-b-2 border-black">
+              <FolderPlus size={14} className="text-[#ff9cb4]" />
+              <span>Import Audio Album</span>
               <input type="file" multiple accept="audio/*" onChange={handleFolderImport} className="hidden" />
             </label>
-            <span className="text-[11px] font-bold text-[#b093b5] bg-white px-3 py-1 rounded-full border border-[#ffdae0]">Stereo DSP Deck Engine Active</span>
           </div>
 
-          {/* Core Table Grid Frame */}
-          <div className="bg-white rounded-3xl p-5 flex-1 border-4 border-[#ffdae0] shadow-sm overflow-y-auto">
-            <div className="flex text-xs font-black text-[#a182a6] uppercase border-b-2 border-dashed border-[#ffdae0] pb-3 px-4 mb-2">
-              <div className="w-12">🍭</div>
-              <div className="flex-1">Song Details</div>
-              <div className="w-48">Album</div>
-            </div>
-
+          {/* Asymmetric Offset Track Window */}
+          <div className="flex-1 bg-white rounded-[32px] border-2 border-[#ffdae0] p-4 overflow-y-auto shadow-sm">
             {playlist.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-[#b093b5] gap-2">
-                <Smile size={36} className="text-[#ff9ea9] animate-pulse" />
-                <p className="text-sm font-bold text-center">Feed me some local music files to start blasting your headphones!</p>
+              <div className="h-full flex flex-col items-center justify-center text-[#9c7d87] gap-3">
+                <div className="w-12 h-12 bg-[#fff0f3] border border-[#ffcad4] rounded-2xl flex items-center justify-center text-[#ff4d79]">
+                  <Sparkles size={20} />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-black uppercase tracking-wider text-[#ff4d79] mb-0.5">Player is Empty</p>
+                  <p className="text-[11px] font-medium text-gray-400">Load local directories to populate audio pipelines.</p>
+                </div>
               </div>
             ) : (
-              playlist.map((track, idx) => (
-                <div 
-                  key={track.id} 
-                  onClick={() => startTrackPipeline(idx)}
-                  className={`flex items-center text-sm py-3 px-4 rounded-xl cursor-pointer transition mb-1 group ${
-                    currentIdx === idx ? 'bg-[#ffdae0] text-[#ff4d79] font-black' : 'hover:bg-[#fff0f3] text-[#4a354f]'
-                  }`}
-                >
-                  <div className="w-12 font-mono text-[#b093b5] font-black">
-                    {currentIdx === idx && isPlaying ? "💝" : String(track.trackNo).padStart(2, '0')}
+              <div className="space-y-1">
+                {playlist.map((track, idx) => (
+                  <div 
+                    key={track.id}
+                    onClick={() => startTrackPipeline(idx)}
+                    className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer transition group border ${
+                      currentIdx === idx 
+                        ? 'bg-[#ffebf0] border-[#ffb8c7] text-[#ff4d79]' 
+                        : 'bg-transparent border-transparent hover:bg-[#fff2f4] text-[#422e37]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className={`w-7 h-7 rounded-lg text-xs font-black flex items-center justify-center ${currentIdx === idx ? 'bg-[#ff4d79] text-white' : 'bg-[#fff0f2] text-[#ff809d]'}`}>
+                        {currentIdx === idx && isPlaying ? "⚡" : String(track.trackNo).padStart(2, '0')}
+                      </div>
+                      <div className="overflow-hidden">
+                        <div className="font-bold truncate text-xs">{track.title}</div>
+                        <div className="text-[10px] text-gray-400 font-bold truncate group-hover:text-[#ff8ca4]">{track.artist}</div>
+                      </div>
+                    </div>
+                    <div className="text-[10px] font-bold text-gray-400 opacity-60 max-w-[120px] truncate pr-2">{track.album}</div>
                   </div>
-                  <div className="flex-1 truncate pr-4">
-                    <div className="font-bold truncate">{track.title}</div>
-                    <div className="text-[11px] text-[#9c829e] font-normal group-hover:text-[#ff6b8b]">{track.artist}</div>
-                  </div>
-                  <div className="w-48 text-xs text-[#a182a6] truncate font-medium">{track.album}</div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* --- BOTTOM PLAYER CONTROLS FOOTER BAR --- */}
-      <div className="h-28 bg-white border-t-4 border-[#ffdae0] flex items-center justify-between px-8 z-10 shadow-lg">
+      {/* 🌸 LOWER CONSOLE PLAYER DECK STRIP */}
+      <div className="h-24 bg-white border-t-2 border-[#ffdae0] flex items-center justify-between px-6 shrink-0 shadow-inner z-10">
         
-        {/* Track Detail Frame (Left) with Real Dynamic Artwork Hook */}
-        <div className="flex items-center gap-4 w-1/3">
+        {/* Vinyl artwork spinner card */}
+        <div className="w-1/3 flex items-center gap-3">
           {currentIdx !== -1 ? (
             <>
-              {playlist[currentIdx]?.coverArt ? (
-                <img 
-                  src={playlist[currentIdx].coverArt} 
-                  alt="art" 
-                  className="w-16 h-16 rounded-2xl object-cover border-2 border-[#ff8fa9] shadow-sm animate-spin [animation-duration:12s]" 
-                />
-              ) : (
-                <div className="w-16 h-16 bg-[#ffdae0] rounded-2xl flex items-center justify-center text-[#ff6b8b] border-2 border-[#ff8fa9] shadow-sm">
-                  <Heart size={24} fill="currentColor" />
-                </div>
-              )}
-              <div className="overflow-hidden">
-                <h3 className="text-sm font-black text-[#4a354f] truncate">{playlist[currentIdx]?.title}</h3>
-                <p className="text-xs text-[#ff6b8b] font-bold truncate">{playlist[currentIdx]?.artist}</p>
-                <p className="text-[10px] text-[#a182a6] font-medium truncate">💿 {playlist[currentIdx]?.album}</p>
+              <div className="relative shrink-0">
+                {playlist[currentIdx]?.coverArt ? (
+                  <img 
+                    src={playlist[currentIdx].coverArt} 
+                    alt="art" 
+                    className={`w-14 h-14 rounded-2xl object-cover border border-[#ffb3c1] shadow-sm ${isPlaying ? 'animate-spin [animation-duration:10s]' : ''}`} 
+                  />
+                ) : (
+                  <div className="w-14 h-14 bg-[#fff0f2] border border-[#ffcad4] rounded-2xl flex items-center justify-center text-[#ff4d79]">
+                    <Disc size={20} className={isPlaying ? 'animate-spin [animation-duration:5s]' : ''} />
+                  </div>
+                )}
+                <div className="absolute inset-0 m-auto w-3 h-3 bg-white border border-[#ffb3c1] rounded-full shadow-inner" />
+              </div>
+              <div className="overflow-hidden leading-tight">
+                <div className="text-xs font-black text-[#2e1b23] truncate">{playlist[currentIdx]?.title}</div>
+                <div className="text-[11px] text-[#ff4d79] font-black truncate">{playlist[currentIdx]?.artist}</div>
+                <div className="text-[9px] font-mono font-bold text-gray-400 tracking-wider uppercase truncate mt-0.5">💿 {playlist[currentIdx]?.album}</div>
               </div>
             </>
           ) : (
-            <p className="text-xs font-bold text-[#b093b5] tracking-wide italic">No cute songs playing...</p>
+            <div className="text-[11px] font-bold text-[#b8a0aa] tracking-wide flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[#ffccd5] animate-ping" />
+              <span>Awaiting input sequence...</span>
+            </div>
           )}
         </div>
 
-        {/* Action Controls Strip (Center) */}
-        <div className="flex items-center gap-4">
-          <button onClick={prevTrack} disabled={currentIdx <= 0} className="text-[#ff9ea9] hover:text-[#ff4d79] disabled:opacity-20 transition transform active:scale-90">
-            <SkipBack size={24} fill="currentColor" />
+        {/* Center operational navigation deck */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => { if (currentIdx > 0) startTrackPipeline(currentIdx - 1); }} 
+            disabled={currentIdx <= 0} 
+            className="w-9 h-9 rounded-xl border border-[#ffdae0] flex items-center justify-center text-[#ff9cb2] hover:text-[#ff4d79] hover:bg-[#fff2f5] disabled:opacity-20 disabled:hover:bg-transparent transition active:scale-90"
+          >
+            <SkipBack size={16} fill="currentColor" />
           </button>
           
           <button 
             onClick={togglePlayState}
-            className="p-4 rounded-full bg-[#ff4d79] text-white hover:bg-[#ff2458] hover:scale-105 active:scale-95 transition shadow-md border-b-4 border-[#d14d72]"
+            className="w-12 h-12 rounded-2xl bg-[#ff4d79] hover:bg-[#ff2458] text-white flex items-center justify-center shadow-[0_4px_12px_rgba(255,77,121,0.4)] transition transform hover:scale-105 active:scale-95 border-b-2 border-[#b81d43]"
           >
-            {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-0.5" />}
+            {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
           </button>
 
-          <button onClick={nextTrack} disabled={currentIdx === -1 || currentIdx >= playlist.length - 1} className="text-[#ff9ea9] hover:text-[#ff4d79] disabled:opacity-20 transition transform active:scale-90">
-            <SkipForward size={24} fill="currentColor" />
+          <button 
+            onClick={() => { if (currentIdx < playlist.length - 1) startTrackPipeline(currentIdx + 1); }} 
+            disabled={currentIdx === -1 || currentIdx >= playlist.length - 1} 
+            className="w-9 h-9 rounded-xl border border-[#ffdae0] flex items-center justify-center text-[#ff9cb2] hover:text-[#ff4d79] hover:bg-[#fff2f5] disabled:opacity-20 disabled:hover:bg-transparent transition active:scale-90"
+          >
+            <SkipForward size={16} fill="currentColor" />
           </button>
         </div>
 
-        <div className="w-1/3 flex justify-end text-[10px] font-bold tracking-wider text-[#b093b5] uppercase">
-          Quellqa Audio {version}
+        {/* Status loop counter right flank */}
+        <div className="w-1/3 flex justify-end text-[10px] font-mono text-[#a38c94] tracking-wider uppercase font-bold">
+          {playlist.length > 0 ? `Track [ ${currentIdx + 1} / ${playlist.length} ]` : 'Empty Rack'}
         </div>
       </div>
     </div>
   );
-
-  function nextTrack() {
-    if (currentIdx < playlist.length - 1) startTrackPipeline(currentIdx + 1);
-  }
-
-  function prevTrack() {
-    if (currentIdx > 0) startTrackPipeline(currentIdx - 1);
-  }
 }
