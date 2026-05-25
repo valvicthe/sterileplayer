@@ -2,7 +2,7 @@
   "name": "quellqa-audio",
   "version": "1.0.0",
   "main": "main.js",
-  "description": " Audio Player & DSP Equalizer",
+  "description": "Quellqa: Cutest Audio Player with Deadly EQ",
   "type": "commonjs",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "package": "vite build && electron-builder"
   },
   "dependencies": {
+    "jsmediatags": "^3.9.5",
     "lucide-react": "^0.300.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -34,7 +35,7 @@
       "output": "dist"
     },
     "win": {
-      "target": "portable" 
+      "target": "portable"
     }
   }
 }
