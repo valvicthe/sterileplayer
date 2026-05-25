@@ -1,12 +1,16 @@
 # quellqa // v2
 
-A brutalist, boutique desktop audio player engineered for sub-bass heavy playback, linear parametric equalization, and minimal footprint performance. Built with Electron, React, and Tailwind CSS.
+A desktop audio player engineered for minimal footprint performance. Built with Electron, React, and Tailwind CSS.
 
-![quellqa interface](image.png)
+Album Art is in BETA. it does not fully work 😭
 
 ---
 
-## ⚙️ DECK CONFIGURATION & FEATURES
+![quellqa interface (light)](image.png)
+
+---
+
+## DECK CONFIGURATION & FEATURES
 
 * **Linear Parametric EQ:** Hardware-modeled knobs for cutting/boosting low, mid, and high frequencies.
 * **Master Pre-Amp:** Dedicated hardware ceiling gain multiplier to drive input signals.
@@ -14,6 +18,4 @@ A brutalist, boutique desktop audio player engineered for sub-bass heavy playbac
 * **Dual-State Layout:** Quick toggle between High-Contrast Industrial Black and Sterile Light Mode.
 * **Scrub & Volume Nodes:** Granular position tracking timeline and a primary volume master fader.
 * **Discord Telemetry Engine:** Live profile presence tracking that broadcasts tracks, artists, and albums (can be toggled off directly in configuration panel).
-* **Natively Looped:** One-click brutalist repeat system to continuously cycle individual loops.
 
----
