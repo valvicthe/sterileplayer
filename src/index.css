@@ -39,3 +39,39 @@ input[type="range"].op-slider-vertical {
 
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: #222222; }
+
+/* Custom Industrial Range Component Mappings */
+.op-slider::-webkit-slider-thumb,
+.timeline-scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 12px;
+  background: #ffffff;
+  border: 1px solid #000000;
+  cursor: pointer;
+  border-radius: 1px;
+}
+
+.light .op-slider::-webkit-slider-thumb,
+.light .timeline-scrub::-webkit-slider-thumb {
+  background: #000000;
+  border: 1px solid #ffffff;
+}
+
+.op-slider-vertical {
+  writing-mode: bt-lr; /* IE */
+  -webkit-appearance: slider-vertical; /* Webkit */
+  width: 6px;
+  height: 100%;
+  background: #111111;
+}
+
+.animate-spin-slow {
+  animation: spin 12s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
