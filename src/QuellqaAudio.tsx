@@ -13,19 +13,17 @@ interface Track {
 }
 
 export default function QuellqaAudio() {
-  const version = "v2 // opium";
+  const version = "v3 // opium-speed";
   
   const [playlist, setPlaylist] = useState<Track[]>([]);
   const [currentIdx, setCurrentIdx] = useState<number>(-1);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLooping, setIsLooping] = useState<boolean>(false);
   
-  // Dynamic Settings Framework
   const [isLightMode, setIsLightMode] = useState<boolean>(false);
   const [rpcEnabled, setRpcEnabled] = useState<boolean>(true);
   const [showSettings, setShowSettings] = useState<boolean>(false);
 
-  // Time & Volume Tracker Register Nodes
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(0.8);
@@ -52,7 +50,6 @@ export default function QuellqaAudio() {
     }
   }, [currentIdx, playlist]);
 
-  // Hook to handle continuous audio node parameter scraping
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -68,14 +65,12 @@ export default function QuellqaAudio() {
     };
   }, []);
 
-  // Sync native volume controller
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume;
     }
   }, [volume]);
 
-  // Hook to automatically terminate RPC connection if state is flipped to false
   useEffect(() => {
     if (!rpcEnabled || currentIdx === -1) {
       try { window.require('electron').ipcRenderer.send('update-rpc', null); } catch(e){}
@@ -135,6 +130,7 @@ export default function QuellqaAudio() {
 
   useEffect(() => { updateDspValues(); }, [preamp, bass, mid, treble]);
 
+  // HIGH SPEED MEMORY PIPELINE FOR IMPORTING
   const handleFolderImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -142,15 +138,20 @@ export default function QuellqaAudio() {
     
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.name.toLowerCase().endsWith('.mp3') || file.name.toLowerCase().endsWith('.wav')) {
+      const nameLower = file.name.toLowerCase();
+      if (nameLower.endsWith('.mp3') || nameLower.endsWith('.wav') || nameLower.endsWith('.m4a') || nameLower.endsWith('.flac')) {
         try {
           const metadata = await musicMetadata.parseBlob(file);
           const common = metadata.common;
           let coverArtUrl = "";
+          
+          // SPEED UP: Native blob stream context routing bypasses base64 processing string stalls
           if (common.picture && common.picture.length > 0) {
             const pic = common.picture[0];
-            coverArtUrl = `data:${pic.format};base64,${btoa(new Uint8Array(pic.data).reduce((d, b) => d + String.fromCharCode(b), ''))}`;
+            const imgBlob = new Blob([pic.data], { type: pic.format });
+            coverArtUrl = URL.createObjectURL(imgBlob);
           }
+          
           loadedTracks.push({
             id: i,
             title: common.title || file.name.replace(/\.[^/.]+$/, ""),
@@ -188,12 +189,10 @@ export default function QuellqaAudio() {
       try { window.require('electron').ipcRenderer.send('update-rpc', { title: track.title, artist: track.artist, album: track.album, isPlaying: true }); } catch (e) {}
     }
 
-    setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.src = track.url;
-        audioRef.current.play().catch(err => console.log(err));
-      }
-    }, 50);
+    if (audioRef.current) {
+      audioRef.current.src = track.url;
+      audioRef.current.play().catch(err => console.log(err));
+    }
   };
 
   const togglePlayState = () => {
@@ -240,7 +239,6 @@ export default function QuellqaAudio() {
     }
   };
 
-  // Color theme classes mapped based on state values
   const themeBg = isLightMode ? 'bg-[#F5F5F5] text-black selection:bg-zinc-200' : 'bg-black text-[#EEEEEE] selection:bg-[#222222]';
   const themeBorder = isLightMode ? 'border-zinc-300' : 'border-[#111111]';
   const themeSubBorder = isLightMode ? 'border-zinc-200' : 'border-[#0a0a0a]';
@@ -253,7 +251,7 @@ export default function QuellqaAudio() {
   const themeTrackItemHover = isLightMode ? 'hover:bg-zinc-100 text-zinc-700' : 'hover:bg-[#080808] text-[#BBBBBB]';
 
   return (
-    <div className={`flex flex-col h-screen tracking-tight font-mono text-xs ${themeBg} transition-colors duration-150`}>
+    <div className={`flex flex-col h-screen tracking-tight font-mono text-xs ${themeBg} transition-colors duration-100`}>
       <audio ref={audioRef} onEnded={handleTrackEnded} crossOrigin="anonymous" />
 
       {/* STRIPPED LINEAR TITLEBAR */}
@@ -283,11 +281,10 @@ export default function QuellqaAudio() {
             </div>
 
             <div className="flex flex-col gap-4 max-w-sm">
-              {/* THEME INTERFACE ROUTER */}
               <div className="flex items-center justify-between p-3 border rounded border-zinc-800">
                 <div>
                   <div className={`font-bold uppercase ${themeBrightText}`}>UI_VISUAL_THEME</div>
-                  <div className={`text-[10px] ${themeMutedText}`}>Toggle between Light Mode and High-Contrast Industrial Black</div>
+                  <div className={`text-[10px] ${themeMutedText}`}>Toggle Light Mode or Industrial Black</div>
                 </div>
                 <button 
                   onClick={() => setIsLightMode(!isLightMode)}
@@ -297,11 +294,10 @@ export default function QuellqaAudio() {
                 </button>
               </div>
 
-              {/* DISCORD DATA PIPELINE SWITCH */}
               <div className="flex items-center justify-between p-3 border rounded border-zinc-800">
                 <div>
                   <div className={`font-bold uppercase ${themeBrightText}`}>DISCORD_RPC_FEED</div>
-                  <div className={`text-[10px] ${themeMutedText}`}>Stream live hardware deck telemetry data to Discord presence profile</div>
+                  <div className={`text-[10px] ${themeMutedText}`}>Stream live telemetry data to your Discord profile</div>
                 </div>
                 <button 
                   onClick={() => setRpcEnabled(!rpcEnabled)}
@@ -319,7 +315,7 @@ export default function QuellqaAudio() {
           <div>
             <div className={`text-[10px] tracking-widest font-bold mb-4 ${themeDeepText}`}>DB_DECK_PARAM</div>
             
-            <div className={`border p-4 flex justify-between items-stretch h-44 ${themeCard} ${themeBorder}`}>
+            <div className={`border p-4 flex justify-between items-stretch h-40 ${themeCard} ${themeBorder}`}>
               <div className="flex flex-col items-center justify-between w-1/3">
                 <span className={`text-[9px] font-bold ${themeMutedText}`}>{bass > 0 ? `+${bass}` : bass}</span>
                 <input type="range" min="-12" max="12" step="0.5" value={bass} orient="vertical" onChange={(e) => setBass(parseFloat(e.target.value))} className="op-slider op-slider-vertical" />
@@ -338,10 +334,10 @@ export default function QuellqaAudio() {
             </div>
           </div>
 
-          {/* DYNAMIC COVER ART LAYOUT */}
-          <div className="my-4 flex-1 flex flex-col justify-center items-center">
+          {/* V3 ENGINE: RE-ENGINEERED 1:1 SQUARE ALBUM DECK CONTEXT */}
+          <div className="my-2 flex-1 flex flex-col justify-center items-center">
             {currentIdx !== -1 && playlist[currentIdx]?.coverArt ? (
-              <div className={`w-full aspect-square max-h-[160px] border p-1 shadow-md bg-zinc-900 ${themeBorder}`}>
+              <div className={`w-full aspect-square max-h-[170px] border p-1 bg-transparent ${themeBorder}`}>
                 <img 
                   src={playlist[currentIdx].coverArt} 
                   alt="Album Art" 
@@ -349,9 +345,9 @@ export default function QuellqaAudio() {
                 />
               </div>
             ) : (
-              <div className={`w-full aspect-square max-h-[160px] border flex flex-col items-center justify-center ${themeBorder} ${themeCard}`}>
-                <Disc size={32} className={`${themeDeepText} animate-spin-slow`} />
-                <span className={`text-[9px] tracking-widest mt-2 uppercase font-bold ${themeDeepText}`}>NO_ART_MOUNT</span>
+              <div className={`w-full aspect-square max-h-[170px] border flex flex-col items-center justify-center ${themeBorder} ${themeCard}`}>
+                <Disc size={36} className={`${themeDeepText} animate-spin-slow transform-gpu`} />
+                <span className={`text-[8px] tracking-widest mt-2 uppercase font-bold ${themeDeepText}`}>NO_ART_MOUNT</span>
               </div>
             )}
           </div>
