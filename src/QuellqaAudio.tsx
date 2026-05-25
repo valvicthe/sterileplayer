@@ -13,7 +13,7 @@ interface Track {
 }
 
 export default function QuellqaAudio() {
-  const version = "v3 // opium-speed";
+  const version = "QUELLQA";
   
   const [playlist, setPlaylist] = useState<Track[]>([]);
   const [currentIdx, setCurrentIdx] = useState<number>(-1);
@@ -50,6 +50,7 @@ export default function QuellqaAudio() {
     }
   }, [currentIdx, playlist]);
 
+  // Hook to handle continuous audio node parameter scraping
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -65,20 +66,47 @@ export default function QuellqaAudio() {
     };
   }, []);
 
+  // Sync native volume controller
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume;
     }
   }, [volume]);
 
+  // Handle cross-thread notifications for Discord & Windows Media Overlay state alterations
   useEffect(() => {
-    if (!rpcEnabled || currentIdx === -1) {
+    if (currentIdx === -1) return;
+    const track = playlist[currentIdx];
+    
+    try {
+      window.require('electron').ipcRenderer.send('sync-native-media', {
+        title: track.title,
+        artist: track.artist,
+        album: track.album,
+        isPlaying: isPlaying
+      });
+    } catch(e){}
+
+    if (!rpcEnabled) {
       try { window.require('electron').ipcRenderer.send('update-rpc', null); } catch(e){}
-    } else if (rpcEnabled && currentIdx !== -1 && isPlaying) {
-      const track = playlist[currentIdx];
+    } else if (rpcEnabled && isPlaying) {
       try { window.require('electron').ipcRenderer.send('update-rpc', { title: track.title, artist: track.artist, album: track.album, isPlaying: true }); } catch (e) {}
     }
-  }, [rpcEnabled]);
+  }, [isPlaying, currentIdx, rpcEnabled]);
+
+  // Listen to remote native multimedia keys from Windows taskbar system
+  useEffect(() => {
+    try {
+      const { ipcRenderer } = window.require('electron');
+      const handleMediaCommand = (_event: any, command: string) => {
+        if (command === 'play-pause') togglePlayState();
+        if (command === 'next') { if (currentIdx < playlist.length - 1) startTrackPipeline(currentIdx + 1); }
+        if (command === 'prev') { if (currentIdx > 0) startTrackPipeline(currentIdx - 1); }
+      };
+      ipcRenderer.on('media-command', handleMediaCommand);
+      return () => { ipcRenderer.removeListener('media-command', handleMediaCommand); };
+    } catch(e){}
+  }, [currentIdx, playlist, isPlaying]);
 
   const runWindowAction = (action: 'close' | 'minimize') => {
     try { window.require('electron').ipcRenderer.send('window-control', action); } catch(e){}
@@ -130,7 +158,6 @@ export default function QuellqaAudio() {
 
   useEffect(() => { updateDspValues(); }, [preamp, bass, mid, treble]);
 
-  // HIGH SPEED MEMORY PIPELINE FOR IMPORTING
   const handleFolderImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -140,31 +167,36 @@ export default function QuellqaAudio() {
       const file = files[i];
       const nameLower = file.name.toLowerCase();
       if (nameLower.endsWith('.mp3') || nameLower.endsWith('.wav') || nameLower.endsWith('.m4a') || nameLower.endsWith('.flac')) {
+        
+        // Setup instant hard-fallback string using clean filename minus extension
+        const cleanFilename = file.name.replace(/\.[^/.]+$/, "");
+        
         try {
           const metadata = await musicMetadata.parseBlob(file);
           const common = metadata.common;
           let coverArtUrl = "";
           
-          // SPEED UP: Native blob stream context routing bypasses base64 processing string stalls
           if (common.picture && common.picture.length > 0) {
             const pic = common.picture[0];
             const imgBlob = new Blob([pic.data], { type: pic.format });
             coverArtUrl = URL.createObjectURL(imgBlob);
           }
           
+          // Fallback condition routing if tags are empty/null strings
           loadedTracks.push({
             id: i,
-            title: common.title || file.name.replace(/\.[^/.]+$/, ""),
-            artist: common.artist || "UNKNOWN ARTIST",
-            album: common.album || "SINGLE",
+            title: common.title?.trim() || cleanFilename,
+            artist: common.artist?.trim() || "UNKNOWN ARTIST",
+            album: common.album?.trim() || "SINGLE",
             trackNo: common.track.no || i + 1,
             url: URL.createObjectURL(file),
             coverArt: coverArtUrl
           });
         } catch (err) {
+          // Total parse failure fallback configuration mapping
           loadedTracks.push({
             id: i,
-            title: file.name.replace(/\.[^/.]+$/, ""),
+            title: cleanFilename,
             artist: "UNKNOWN ARTIST",
             album: "SINGLE",
             trackNo: i + 1,
@@ -185,10 +217,6 @@ export default function QuellqaAudio() {
     if (audioCtxRef.current?.state === 'suspended') { audioCtxRef.current.resume(); } else { initAudioGraph(); }
 
     const track = playlist[idx];
-    if (rpcEnabled) {
-      try { window.require('electron').ipcRenderer.send('update-rpc', { title: track.title, artist: track.artist, album: track.album, isPlaying: true }); } catch (e) {}
-    }
-
     if (audioRef.current) {
       audioRef.current.src = track.url;
       audioRef.current.play().catch(err => console.log(err));
@@ -198,19 +226,12 @@ export default function QuellqaAudio() {
   const togglePlayState = () => {
     if (playlist.length === 0) return;
     if (currentIdx === -1) { startTrackPipeline(0); return; }
-    const track = playlist[currentIdx];
     if (isPlaying) { 
       audioRef.current?.pause(); 
       setIsPlaying(false); 
-      if (rpcEnabled) {
-        try { window.require('electron').ipcRenderer.send('update-rpc', { title: track.title, artist: track.artist, album: track.album, isPlaying: false }); } catch (e) {}
-      }
     } else { 
       audioRef.current?.play(); 
       setIsPlaying(true); 
-      if (rpcEnabled) {
-        try { window.require('electron').ipcRenderer.send('update-rpc', { title: track.title, artist: track.artist, album: track.album, isPlaying: true }); } catch (e) {}
-      }
     }
   };
 
@@ -334,7 +355,7 @@ export default function QuellqaAudio() {
             </div>
           </div>
 
-          {/* V3 ENGINE: RE-ENGINEERED 1:1 SQUARE ALBUM DECK CONTEXT */}
+          {/* 1:1 SQUARE ALBUM DECK CONTEXT */}
           <div className="my-2 flex-1 flex flex-col justify-center items-center">
             {currentIdx !== -1 && playlist[currentIdx]?.coverArt ? (
               <div className={`w-full aspect-square max-h-[170px] border p-1 bg-transparent ${themeBorder}`}>
