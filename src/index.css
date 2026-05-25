@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom slider cleanup for vertical layouts */
+input[type="range"][orient="vertical"] {
+  appearance: slider-vertical;
+  width: 8px;
+  height: 100%;
+}
