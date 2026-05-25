@@ -1,6 +1,6 @@
 {
   "name": "quellqa-audio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "main.js",
   "description": "Quellqa: Cutest Audio Player with Deadly EQ",
   "type": "commonjs",
@@ -10,7 +10,8 @@
     "package": "vite build && electron-builder"
   },
   "dependencies": {
-    "jsmediatags": "^3.9.5",
+    "discord-rpc": "^4.0.1",
+    "music-metadata-browser": "^2.5.10",
     "lucide-react": "^0.300.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
