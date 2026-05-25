@@ -71,7 +71,18 @@ input[type="range"].op-slider-vertical {
   animation: spin 12s linear infinite;
 }
 
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+
+/* Custom Industrial Text Inputs */
+input[type="text"]:focus {
+  box-shadow: 0 0 0 1px #dc2626;
+}
+
+/* Brutalist Vertical Equalizer Slider Overrides */
+.op-slider-vertical {
+  writing-mode: bt-lr; /* IE */
+  appearance: slider-vertical; /* Webkit */
+  width: 8px;
+  height: 100px;
+  background: #111;
+  outline: none;
 }
