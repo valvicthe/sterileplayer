@@ -9,7 +9,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 980,
     height: 600,
-    title: "Quellqa Audio Subsystem v5.0",
+    title: "QUELLQA",
     frame: false,
     resizable: true,
     backgroundColor: '#000000',
@@ -26,7 +26,6 @@ function createWindow() {
   });
 }
 
-// --- WINDOWS TASKBAR THUMBNAIL HOVER CONTROLS SYSTEM ---
 function setThumbarButtons(isPlaying) {
   if (!win || process.platform !== 'win32') return;
 
@@ -56,7 +55,6 @@ function setThumbarButtons(isPlaying) {
   }
 }
 
-// --- IPC WINDOW OPERATIONS MATRIX ---
 ipcMain.on('window-control', (event, action) => {
   if (!win) return;
   if (action === 'close') win.close();
@@ -68,14 +66,14 @@ ipcMain.on('sync-native-media', (event, data) => {
   setThumbarButtons(data.isPlaying);
 });
 
-// --- DISCORD TELEMETRY DISPATCH (PRESERVED CASING MATRIX) ---
+// --- DISCORD TELEMETRY MATRIX ---
 const rpc = new DiscordRPC.Client({ transport: 'ipc' });
 
 function setInitialPresence() {
   if (!rpc) return;
   rpc.setActivity({
     details: 'Idle in the Menus',
-    state: 'Quellqa v5.0 // Stable',
+    state: 'Quellqa v6.5 // Stable',
     largeImageKey: 'quellqa_logo',
     instance: false,
   }).catch(console.error);
@@ -85,17 +83,12 @@ ipcMain.on('update-rpc', (event, track) => {
   if (!rpc) return;
   
   if (track && track.isPlaying) {
-    // String modulations removed: text fields now reflect literal file values
-    const trackTitle  = track.title;
-    const trackArtist = track.artist;
-    const trackAlbum  = track.album;
-
     rpc.setActivity({
-      type: 2,                                   // Sets layout flag to "Listening to..."
-      details: `${trackTitle} — ${trackArtist}`, // Line 1: Track Details
-      state: `Album: ${trackAlbum}`,             // Line 2: Dedicated custom album row
+      type: 2,                                   // Forces the "Listening to..." state
+      details: `${track.title} — ${track.artist}`, // Original metadata preservation
+      state: `Album: ${track.album}`,             
       largeImageKey: 'quellqa_logo',
-      largeImageText: 'Quellqa Audio Subsystem v5.0',
+      largeImageText: 'Quellqa Audio Subsystem v6.5',
       instance: false,
     }).catch((err) => {
       console.error("RPC Presence generation failed:", err);
@@ -108,11 +101,9 @@ ipcMain.on('update-rpc', (event, track) => {
 rpc.on('ready', () => { setInitialPresence(); });
 rpc.login({ clientId }).catch(console.error);
 
-// --- HARDWARE LIFECYCLE ROUTERS ---
 app.whenReady().then(() => {
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app.commandLine.appendSwitch('disable-background-timer-throttling');
-
   createWindow();
 
   globalShortcut.register('MediaPlayPause', () => { win?.webContents.send('media-command', 'play-pause'); });
@@ -120,10 +111,5 @@ app.whenReady().then(() => {
   globalShortcut.register('MediaPreviousTrack', () => { win?.webContents.send('media-command', 'prev'); });
 });
 
-app.on('will-quit', () => { 
-  globalShortcut.unregisterAll(); 
-});
-
-app.on('window-all-closed', () => { 
-  if (process.platform !== 'darwin') app.quit(); 
-});
+app.on('will-quit', () => { globalShortcut.unregisterAll(); });
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
