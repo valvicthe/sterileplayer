@@ -1,26 +1,38 @@
 {
-  "name": "quellqa",
-  "version": "6.5.0",
+  "name": "quellqa-audio",
+  "version": "6.5.0production",
   "main": "main.js",
-  "description": "Audio Listening Environment",
-  "author": "ValorieMcFlurry",
+  "description": "QUELLQA",
+  "type": "commonjs",
   "scripts": {
-    "package": "electron-builder build --win"
+    "dev": "vite",
+    "build": "vite build",
+    "package": "vite build && electron-builder"
   },
   "dependencies": {
     "discord-rpc": "^4.0.1",
-    "lucide-react": "^0.300.0",
     "music-metadata-browser": "^2.5.10",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "lucide-react": "^0.300.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "electron": "^28.1.0",
-    "electron-builder": "^24.9.1"
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "vite": "^5.3.1"
   },
   "build": {
-    "appId": "com.quellqa.player",
-    "productName": "QUELLQA",
+    "appId": "com.quellqa.audio",
+    "productName": "QUELLQAAUDIO",
+    "files": [
+      "dist-web/**/*",
+      "main.js",
+      "icon.ico"
+    ],
     "directories": {
       "output": "dist"
     },
