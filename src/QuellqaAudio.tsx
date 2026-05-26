@@ -10,11 +10,10 @@ interface Track {
   trackNo: number;
   url: string;
   coverArt: string; 
-  rpcArt: string;   
 }
 
 export default function QuellqaAudio() {
-  const version = "QUELLQA V5";
+  const version = "v5.0.0";
   
   const [playlist, setPlaylist] = useState<Track[]>([]);
   const [currentIdx, setCurrentIdx] = useState<number>(-1);
@@ -47,7 +46,7 @@ export default function QuellqaAudio() {
     if (currentIdx !== -1 && playlist[currentIdx]) {
       document.title = playlist[currentIdx].title;
     } else {
-      document.title = "QUELLQA";
+      document.title = "Quellqa Audio";
     }
   }, [currentIdx, playlist]);
 
@@ -93,8 +92,7 @@ export default function QuellqaAudio() {
           title: track.title, 
           artist: track.artist, 
           album: track.album, 
-          isPlaying: isPlaying,
-          rpcArt: track.rpcArt 
+          isPlaying: isPlaying
         }); 
       } catch (e) {}
     }
@@ -179,39 +177,31 @@ export default function QuellqaAudio() {
           const metadata = await musicMetadata.parseBlob(file);
           const common = metadata.common;
           let coverArtUrl = "";
-          let rpcArtUrl = "";
           
           if (common.picture && common.picture.length > 0) {
             const pic = common.picture[0];
             const imgBlob = new Blob([pic.data], { type: pic.format });
             coverArtUrl = URL.createObjectURL(imgBlob);
-
-            const base64String = btoa(
-              pic.data.reduce((data, byte) => data + String.fromCharCode(byte), "")
-            );
-            rpcArtUrl = `data:${pic.format};base64,${base64String}`;
           }
           
           loadedTracks.push({
             id: Date.now() + i,
             title: common.title?.trim() || cleanFilename,
-            artist: common.artist?.trim() || "UNKNOWN ARTIST",
-            album: common.album?.trim() || "LOCAL TRACK",
+            artist: common.artist?.trim() || "Unknown Artist",
+            album: common.album?.trim() || "Local Track",
             trackNo: common.track.no || i + 1,
             url: URL.createObjectURL(file),
-            coverArt: coverArtUrl,
-            rpcArt: rpcArtUrl
+            coverArt: coverArtUrl
           });
         } catch (err) {
           loadedTracks.push({
             id: Date.now() + i,
             title: cleanFilename,
-            artist: "UNKNOWN ARTIST",
-            album: "LOCAL TRACK",
+            artist: "Unknown Artist",
+            album: "Local Track",
             trackNo: i + 1,
             url: URL.createObjectURL(file),
-            coverArt: "",
-            rpcArt: ""
+            coverArt: ""
           });
         }
       }
@@ -295,7 +285,7 @@ export default function QuellqaAudio() {
           <button onClick={() => runWindowAction('close')} className="w-2.5 h-2.5 bg-[#222222] hover:bg-red-900 transition rounded-full" />
           <button onClick={() => runWindowAction('minimize')} className="w-2.5 h-2.5 bg-[#222222] hover:bg-zinc-700 transition rounded-full" />
         </div>
-        <div className={`text-[10px] tracking-[0.2em] font-bold ${themeDeepText}`}>{version}</div>
+        <div className={`text-[10px] tracking-widest font-bold ${themeDeepText}`}>{version}</div>
         <button 
           onClick={() => setShowSettings(!showSettings)} 
           className={`titlebar-nodrag p-1 transition ${showSettings ? 'text-red-500' : `${themeDeepText} hover:text-white`}`}
@@ -308,13 +298,13 @@ export default function QuellqaAudio() {
         {showSettings && (
           <div className={`absolute inset-0 z-40 p-6 flex flex-col gap-6 ${isLightMode ? 'bg-[#F5F5F5]' : 'bg-black'}`}>
             <div className="flex justify-between items-center border-b pb-2 border-zinc-800">
-              <span className={`text-[11px] tracking-widest ${themeBrightText}`}>SYSTEM_CONFIG_BOARD</span>
-              <button onClick={() => setShowSettings(false)} className="text-red-500 font-bold hover:underline">[CLOSE]</button>
+              <span className={`text-[11px] tracking-widest ${themeBrightText}`}>System Configuration Board</span>
+              <button onClick={() => setShowSettings(false)} className="text-red-500 font-bold hover:underline">[Close]</button>
             </div>
             <div className="flex flex-col gap-4 max-w-sm">
               <div className="flex items-center justify-between p-3 border rounded border-zinc-800">
                 <div>
-                  <div className={`font-bold ${themeBrightText}`}>UI_VISUAL_THEME</div>
+                  <div className={`font-bold ${themeBrightText}`}>UI Visual Theme</div>
                   <div className={`text-[10px] ${themeMutedText}`}>Toggle Light Mode or Industrial Black</div>
                 </div>
                 <button 
@@ -326,14 +316,14 @@ export default function QuellqaAudio() {
               </div>
               <div className="flex items-center justify-between p-3 border rounded border-zinc-800">
                 <div>
-                  <div className={`font-bold ${themeBrightText}`}>DISCORD_RPC_FEED</div>
-                  <div className={`text-[10px] ${themeMutedText}`}>Stream live telemetry data to your Discord profile. If Disabled, it shows that you are in the menu.</div>
+                  <div className={`font-bold ${themeBrightText}`}>Discord RPC Feed</div>
+                  <div className={`text-[10px] ${themeMutedText}`}>Stream live telemetry data to your Discord profile</div>
                 </div>
                 <button 
                   onClick={() => setRpcEnabled(!rpcEnabled)}
                   className={`px-2 h-6 border font-bold text-[10px] transition rounded ${rpcEnabled ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-zinc-800 text-zinc-400 border-zinc-700'}`}
                 >
-                  {rpcEnabled ? "ACTIVE" : "OFF"}
+                  {rpcEnabled ? "Active" : "Muted"}
                 </button>
               </div>
             </div>
@@ -343,7 +333,7 @@ export default function QuellqaAudio() {
         {/* PARAMETRIC CONTROLS STACK */}
         <div className="w-64 flex flex-col p-4 border-r justify-between shrink-0 border-zinc-900">
           <div>
-            <div className={`text-[10px] tracking-widest font-bold mb-4 ${themeDeepText}`}>DB_DECK_PARAM</div>
+            <div className={`text-[10px] tracking-widest font-bold mb-4 ${themeDeepText}`}>Deck Parameters</div>
             <div className={`border p-4 flex justify-between items-stretch h-40 ${themeCard} ${themeBorder}`}>
               <div className="flex flex-col items-center justify-between w-1/3">
                 <span className={`text-[9px] font-bold ${themeMutedText}`}>{bass > 0 ? `+${bass}` : bass}</span>
@@ -375,7 +365,7 @@ export default function QuellqaAudio() {
               ) : (
                 <div className="flex flex-col items-center justify-center w-full h-full">
                   <Disc size={36} className={`${themeDeepText} animate-spin-slow transform-gpu`} />
-                  <span className={`text-[8px] tracking-widest mt-2 uppercase font-bold ${themeDeepText}`}>NO_ART_MOUNT</span>
+                  <span className={`text-[8px] tracking-widest mt-2 font-bold ${themeDeepText}`}>No Album Art Mounted</span>
                 </div>
               )}
             </div>
@@ -393,11 +383,11 @@ export default function QuellqaAudio() {
         {/* WORKSPACE MATRIX */}
         <div className="flex-1 flex flex-col p-4">
           <div className="flex justify-between items-center mb-4 gap-4">
-            <div className={`text-[10px] font-bold tracking-widest ${themeDeepText}`}>DIR_LOADER</div>
+            <div className={`text-[10px] font-bold tracking-widest ${themeDeepText}`}>Directory Loader</div>
             
             <label className={`flex items-center gap-1.5 border font-bold text-[10px] px-3 py-1.5 cursor-pointer transition shrink-0 ${isLightMode ? 'border-zinc-400 hover:bg-zinc-200 text-black' : 'border-[#222222] hover:border-[#444444] text-white'}`}>
               <Folder size={12} />
-              <span>IMPORT ALBUM</span>
+              <span>Import Album</span>
               <input type="file" multiple accept="audio/*" onChange={handleFolderImport} className="hidden" />
             </label>
           </div>
@@ -405,7 +395,7 @@ export default function QuellqaAudio() {
           <div className={`flex-1 border overflow-y-auto ${themeWindowInner} ${themeBorder}`}>
             {playlist.length === 0 ? (
               <div className={`h-full flex items-center justify-center font-bold tracking-widest text-[10px] ${themeMutedText}`}>
-                NO_AUDIO_MOUNTED
+                No Audio Mounted
               </div>
             ) : (
               <div className={`divide-y ${themeSubBorder}`}>
@@ -419,9 +409,9 @@ export default function QuellqaAudio() {
                   >
                     <div className="flex items-center gap-3 truncate">
                       <span className={`w-4 font-mono font-bold ${currentIdx === idx ? 'text-white' : themeDeepText}`}>{String(idx + 1).padStart(2, '0')}</span>
-                      <span className="truncate uppercase tracking-tight">{track.title}</span>
+                      <span className="truncate tracking-tight">{track.title}</span>
                     </div>
-                    <span className={`text-[10px] truncate pl-4 uppercase tracking-tighter w-40 text-right ${currentIdx === idx ? 'text-white' : themeMutedText}`}>{track.artist}</span>
+                    <span className={`text-[10px] truncate pl-4 tracking-tighter w-40 text-right ${currentIdx === idx ? 'text-white' : themeMutedText}`}>{track.artist}</span>
                   </div>
                 ))}
               </div>
@@ -441,12 +431,12 @@ export default function QuellqaAudio() {
       <div className={`h-16 border-t flex items-center justify-between px-4 shrink-0 z-10 ${themeBorder} ${isLightMode ? 'bg-white' : 'bg-black'}`}>
         <div className="w-1/3 flex items-center gap-3">
           {currentIdx !== -1 ? (
-            <div className="leading-tight truncate uppercase">
+            <div className="leading-tight truncate">
               <div className={`text-[12px] tracking-tight truncate ${themeBrightText}`}>{playlist[currentIdx]?.title}</div>
               <div className={`text-[9px] font-bold truncate mt-0.5 ${themeMutedText}`}>{playlist[currentIdx]?.artist} // {playlist[currentIdx]?.album}</div>
             </div>
           ) : (
-            <span className={`text-[10px] font-bold tracking-widest ${themeDeepText}`}>DECK_STANDBY</span>
+            <span className={`text-[10px] font-bold tracking-widest ${themeDeepText}`}>Deck Standby</span>
           )}
         </div>
 
@@ -472,7 +462,7 @@ export default function QuellqaAudio() {
             <span className="text-[9px] font-bold font-mono text-zinc-400 w-6 text-right">{Math.round(volume * 100)}%</span>
           </div>
           <div className={`text-[10px] font-bold tracking-wider font-mono pl-2 border-l border-zinc-800 ${themeMutedText}`}>
-            {playlist.length > 0 ? `[${currentIdx + 1}/${playlist.length}]` : 'NULL'}
+            {playlist.length > 0 ? `[${currentIdx + 1}/${playlist.length}]` : 'Null'}
           </div>
         </div>
       </div>
