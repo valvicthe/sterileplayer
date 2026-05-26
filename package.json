@@ -22,19 +22,11 @@
     "appId": "com.quellqa.player",
     "productName": "QUELLQA",
     "directories": {
-      "output": "dist-built"
+      "output": "dist"
     },
     "win": {
-      "target": "nsis",
+      "target": "portable",
       "icon": "icon.ico"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowElevation": false,
-      "allowToChangeInstallationDirectory": true,
-      "shortcutName": "QUELLQA",
-      "uninstallDisplayName": "Uninstall QUELLQA"
     }
   }
 }
