@@ -83,7 +83,7 @@ export default function QuellqaAudio() {
 
   const [pitchRate, setPitchRate] = useState<number>(1.0); 
   const [stereoPan, setStereoPan] = useState<number>(0.0); 
-  const [crossfadeDuration] = useState<number>(4); 
+  const [crossfadeDuration, setCrossfadeDuration] = useState<number>(4); 
   const isTransitioningRef = useRef<boolean>(false);
 
   const [currentTime, setCurrentTime] = useState<number>(0);
@@ -91,11 +91,11 @@ export default function QuellqaAudio() {
   const [volume, setVolume] = useState<number>(0.8);
 
   const [preamp, setPreamp] = useState<number>(0);
-  const [subBass, setSubBass] = useState<number>(6);   
-  const [lowMid, setLowMid] = useState<number>(3);     
-  const [mid, setMid] = useState<number>(-2);         
-  const [highMid, setHighMid] = useState<number>(4);   
-  const [treble, setTreble] = useState<number>(2);     
+  const [subBass, setSubBass] = useState<number>(0);   
+  const [lowMid, setLowMid] = useState<number>(0);     
+  const [mid, setMid] = useState<number>(0);         
+  const [highMid, setHighMid] = useState<number>(0);   
+  const [treble, setTreble] = useState<number>(0);     
 
   const audioARef = useRef<HTMLAudioElement | null>(null);
   const audioBRef = useRef<HTMLAudioElement | null>(null);
@@ -121,13 +121,11 @@ export default function QuellqaAudio() {
     getTracksFromDB().then(tracks => { setMasterTracks(tracks); }).catch(() => {});
   }, []);
 
-  // AUTOMATED SYSTEM WINDOW FRAME & DISCORD IPC BROADCASTER EFFECT LOOP
   useEffect(() => {
     if (currentIdx !== -1 && activeQueue[currentIdx]) {
       const currentTrack = activeQueue[currentIdx];
       document.title = `Playing: ${currentTrack.title} — ${currentTrack.artist}`;
       
-      // Send raw payload across the IPC channel loop
       try {
         const { ipcRenderer } = window.require('electron');
         ipcRenderer.send('sync-native-media', { title: currentTrack.title, artist: currentTrack.artist, isPlaying });
@@ -168,7 +166,16 @@ export default function QuellqaAudio() {
 
     srcA.connect(gainA).connect(p);
     srcB.connect(gainB).connect(p);
-    p.connect(panner).connect(eqSub).connect(eqLowMid).connect(eqMid).connect(eqHighMid).connect(eqTreb).connect(analyser).connect(ctx.destination);
+    
+    // EQ MATRIX SEQUENTIAL CHAINING
+    p.connect(panner)
+     .connect(eqSub)
+     .connect(eqLowMid)
+     .connect(eqMid)
+     .connect(eqHighMid)
+     .connect(eqTreb)
+     .connect(analyser)
+     .connect(ctx.destination);
 
     preampNodeRef.current = p; 
     subNodeRef.current = eqSub; lowMidNodeRef.current = eqLowMid; 
@@ -243,7 +250,7 @@ export default function QuellqaAudio() {
       aElement?.removeEventListener('ended', handleEnded);
       bElement?.removeEventListener('ended', handleEnded);
     };
-  }, [currentIdx, activeQueue, isLooping]);
+  }, [currentIdx, activeQueue, isLooping, crossfadeDuration]);
 
   const triggerLinearCrossfade = () => {
     if (isTransitioningRef.current || !audioCtxRef.current) return;
@@ -404,8 +411,55 @@ export default function QuellqaAudio() {
   return (
     <div className="flex flex-col h-screen font-mono text-[11px] tracking-tight bg-black text-white selection:bg-zinc-800">
       <style>{`
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 8px; height: 12px; background: #ffffff; cursor: pointer; border-radius: 0px; }
-        input[type="range"]::-moz-range-thumb { width: 8px; height: 12px; background: #ffffff; cursor: pointer; border-radius: 0px; border: none; }
+        /* Fix vertical slider drag mechanics in Webkit/Electron */
+        input[type="range"][orient="vertical"] {
+          writing-mode: vertical-lr;
+          direction: rtl;
+          appearance: slider-vertical;
+          width: 12px;
+          height: 96px;
+          background: transparent;
+        }
+
+        /* Keep horizontal track styling clean */
+        input[type="range"]:not([orient="vertical"])[type="range"]::-webkit-slider-thumb { 
+          -webkit-appearance: none; 
+          appearance: none; 
+          width: 8px; 
+          height: 12px; 
+          background: #ffffff; 
+          cursor: pointer; 
+          border-radius: 0px; 
+        }
+        
+        input[type="range"]:not([orient="vertical"])[type="range"]::-moz-range-thumb { 
+          width: 8px; 
+          height: 12px; 
+          background: #ffffff; 
+          cursor: pointer; 
+          border-radius: 0px; 
+          border: none; 
+        }
+
+        /* Style the vertical EQ thumbs cleanly */
+        input[type="range"][orient="vertical"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 12px;
+          height: 8px;
+          background: #ffffff;
+          cursor: pointer;
+          border-radius: 0px;
+        }
+
+        input[type="range"][orient="vertical"]::-moz-range-thumb {
+          width: 12px;
+          height: 8px;
+          background: #ffffff;
+          cursor: pointer;
+          border-radius: 0px;
+          border: none;
+        }
       `}</style>
 
       <audio ref={audioARef} crossOrigin="anonymous" />
@@ -421,7 +475,7 @@ export default function QuellqaAudio() {
           <button onClick={() => setActiveTab('playing')} className={`flex items-center gap-1.5 uppercase transition ${activeTab === 'playing' ? 'text-white' : 'text-zinc-600'}`}><Radio size={12}/>Deck Studio</button>
           <button onClick={() => setActiveTab('library')} className={`flex items-center gap-1.5 uppercase transition ${activeTab === 'library' ? 'text-white' : 'text-zinc-600'}`}><Library size={12}/>Library Vault</button>
         </div>
-        <span className="text-[9px] font-bold tracking-widest text-zinc-700">DB_SECURE_V8.5</span>
+        <span className="text-[9px] font-bold tracking-widest text-zinc-700">DB_SECURE_V8.5.1</span>
       </div>
 
       <div className="flex-1 flex overflow-hidden bg-black relative">
@@ -464,11 +518,16 @@ export default function QuellqaAudio() {
                     <input type="range" min="0.5" max="2.0" step="0.01" value={pitchRate} onChange={e=>setPitchRate(parseFloat(e.target.value))} className="w-full h-1 bg-zinc-900 outline-none appearance-none" />
                   </div>
                   <div>
+                    <div className="flex justify-between text-[8px] font-bold text-zinc-400 mb-1"><span>CROSSFADE TIME</span><span>{crossfadeDuration}s</span></div>
+                    <input type="range" min="0" max="15" step="1" value={crossfadeDuration} onChange={e=>setCrossfadeDuration(parseInt(e.target.value))} className="w-full h-1 bg-zinc-900 outline-none appearance-none" />
+                  </div>
+                  <div>
                     <div className="flex justify-between text-[8px] font-bold text-zinc-400 mb-1"><span>STEREO BALANCE</span><span>{stereoPan === 0 ? 'CENTER' : stereoPan < 0 ? `L ${Math.abs(Math.round(stereoPan * 100))}%` : `R ${Math.round(stereoPan * 100)}%`}</span></div>
                     <input type="range" min="-1.0" max="1.0" step="0.02" value={stereoPan} onChange={e=>setStereoPan(parseFloat(e.target.value))} className="w-full h-1 bg-zinc-900 outline-none appearance-none" />
                   </div>
                 </div>
 
+                {/* HARDWARE EQ SLIDERS COMPONENT */}
                 <div className="h-40 border border-zinc-900 p-3 flex justify-between bg-black">
                   {[
                     { label: '60Hz', v: subBass, s: setSubBass },
@@ -477,10 +536,21 @@ export default function QuellqaAudio() {
                     { label: '4kHz', v: highMid, s: setHighMid },
                     { label: '14kHz', v: treble, s: setTreble }
                   ].map((c, i) => (
-                    <div key={i} className="flex flex-col items-center justify-between w-1/5">
-                      <span className="text-[8px] font-bold text-zinc-400">{c.v > 0 ? `+${c.v}` : c.v}</span>
-                      <input type="range" min="-12" max="12" step="1" value={c.v} orient="vertical" onChange={e => c.s(parseFloat(e.target.value))} className="h-24 w-1 bg-zinc-900 outline-none appearance-none" />
-                      <span className="text-[7px] font-bold text-zinc-600 tracking-tighter mt-1">{c.label}</span>
+                    <div key={i} className="flex flex-col items-center justify-between w-1/5 h-full">
+                      <span className="text-[8px] font-bold text-zinc-400 h-3">{c.v > 0 ? `+${c.v}` : c.v}</span>
+                      <div className="flex-1 flex items-center justify-center my-1">
+                        <input 
+                          type="range" 
+                          min="-12" 
+                          max="12" 
+                          step="1" 
+                          value={c.v} 
+                          orient="vertical" 
+                          onChange={e => c.s(parseFloat(e.target.value))} 
+                          className="outline-none accent-white" 
+                        />
+                      </div>
+                      <span className="text-[7px] font-bold text-zinc-600 tracking-tighter h-3">{c.label}</span>
                     </div>
                   ))}
                 </div>
@@ -576,16 +646,30 @@ export default function QuellqaAudio() {
         <span className="text-[9px] text-zinc-500">{Math.floor(duration / 60)}:{(Math.floor(duration % 60)).toString().padStart(2, '0')}</span>
       </div>
 
-      {/* FOOTER MASTER CONTROLS BAR */}
+      {/* FOOTER MASTER CONTROLS BAR WITH EMBEDDED ARTWORK */}
       <div className="h-16 border-t border-zinc-900 flex items-center justify-between px-6 shrink-0 bg-black">
-        <div className="w-1/3 truncate">
+        <div className="w-1/3 flex items-center gap-3 truncate">
           {currentIdx !== -1 && activeQueue[currentIdx] ? (
             <>
-              <div className="text-[12px] font-bold truncate text-white">{activeQueue[currentIdx].title}</div>
-              <div className="text-[9px] mt-0.5 uppercase font-bold tracking-widest text-zinc-600">{activeQueue[currentIdx].artist} // {activeQueue[currentIdx].album}</div>
+              <div className="w-10 h-10 border border-zinc-900 bg-zinc-950 shrink-0 overflow-hidden flex items-center justify-center">
+                {activeQueue[currentIdx].coverArt ? (
+                  <img src={activeQueue[currentIdx].coverArt} className="w-full h-full object-cover" />
+                ) : (
+                  <Disc size={16} className="text-zinc-800" />
+                )}
+              </div>
+              <div className="truncate">
+                <div className="text-[12px] font-bold truncate text-white">{activeQueue[currentIdx].title}</div>
+                <div className="text-[9px] mt-0.5 uppercase font-bold tracking-widest text-zinc-600 truncate">{activeQueue[currentIdx].artist} // {activeQueue[currentIdx].album}</div>
+              </div>
             </>
           ) : (
-            <span className="text-[9px] font-bold tracking-widest text-zinc-700 uppercase">System Standby</span>
+            <>
+              <div className="w-10 h-10 border border-zinc-900 bg-zinc-950 shrink-0 flex items-center justify-center">
+                <Disc size={16} className="text-zinc-900" />
+              </div>
+              <span className="text-[9px] font-bold tracking-widest text-zinc-700 uppercase">System Standby</span>
+            </>
           )}
         </div>
 
