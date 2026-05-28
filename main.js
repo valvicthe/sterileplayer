@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const DiscordRPC = require('discord-rpc');
+const fs = require('fs');
 
 let win;
 const clientId = '1508392537914871838'; 
@@ -16,44 +17,23 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      webSecurity: false // Necessary to stream direct disk paths safely across app restarts
+      webSecurity: false
     }
   });
 
   win.loadFile(path.join(__dirname, 'dist-web/index.html'));
-  
-  win.once('ready-to-show', () => {
-    setThumbarButtons(false);
-  });
+  win.once('ready-to-show', () => { setThumbarButtons(false); });
 }
 
 function setThumbarButtons(isPlaying) {
   if (!win || process.platform !== 'win32') return;
-
   try {
     win.setThumbarButtons([
-      {
-        tooltip: 'Previous Track',
-        icon: 'media-skip-backward',
-        flags: [],
-        click() { win.webContents.send('media-command', 'prev'); }
-      },
-      {
-        tooltip: isPlaying ? 'Pause' : 'Play',
-        icon: isPlaying ? 'media-pause' : 'media-play',
-        flags: [],
-        click() { win.webContents.send('media-command', 'play-pause'); }
-      },
-      {
-        tooltip: 'Next Track',
-        icon: 'media-skip-forward',
-        flags: [],
-        click() { win.webContents.send('media-command', 'next'); }
-      }
+      { tooltip: 'Previous Track', icon: 'media-skip-backward', click() { win.webContents.send('media-command', 'prev'); } },
+      { tooltip: isPlaying ? 'Pause' : 'Play', icon: isPlaying ? 'media-pause' : 'media-play', click() { win.webContents.send('media-command', 'play-pause'); } },
+      { tooltip: 'Next Track', icon: 'media-skip-forward', click() { win.webContents.send('media-command', 'next'); } }
     ]);
-  } catch (e) {
-    console.error("Taskbar buttons configuration failed:", e);
-  }
+  } catch (e) {}
 }
 
 ipcMain.on('window-control', (event, action) => {
@@ -63,46 +43,26 @@ ipcMain.on('window-control', (event, action) => {
 });
 
 ipcMain.on('sync-native-media', (event, data) => {
-  if (!win || !data) return;
-  setThumbarButtons(data.isPlaying);
+  if (win && data) setThumbarButtons(data.isPlaying);
 });
 
-// ================= DISCORD TELEMETRY MATRIX BACKBONE =================
+// DISCORD RPC LINK
 const rpc = new DiscordRPC.Client({ transport: 'ipc' });
-
 function setInitialPresence() {
-  if (!rpc) return;
-  rpc.setActivity({
-    details: 'Browsing Music Library',
-    state: 'VERSION X // Uncapped Engine',
-    largeImageKey: 'quellqa_logo',
-    instance: false,
-  }).catch(() => {});
+  rpc?.setActivity({ details: 'Browsing Music Library', state: 'VERSION X', largeImageKey: 'quellqa_logo', instance: false }).catch(() => {});
 }
-
 ipcMain.on('update-rpc', (event, track) => {
   if (!rpc) return;
-  
   if (track && track.isPlaying) {
-    rpc.setActivity({
-      type: 2,                                     
-      details: `${track.title} // ${track.artist}`, 
-      state: `${track.album}`,             
-      largeImageKey: 'quellqa_logo',
-      largeImageText: 'Quellqa VERSION X',
-      instance: false,
-    }).catch((err) => {
-      console.error("Discord presence update failed:", err);
-    });
+    rpc.setActivity({ type: 2, details: `${track.title} // ${track.artist}`, state: `${track.album}`, largeImageKey: 'quellqa_logo', instance: false }).catch(() => {});
   } else {
     setInitialPresence();
   }
 });
-
 rpc.on('ready', () => { setInitialPresence(); });
-rpc.login({ clientId }).catch(() => console.log("Discord link standby..."));
+rpc.login({ clientId }).catch(() => {});
 
-// ================= LOCAL RESTARTS SOURCE FILE HANDLER =================
+// DIRECT RAW AUDIO EXTRACTOR (Bypasses all loading restrictions)
 ipcMain.handle('select-music-dir', async () => {
   const result = await dialog.showOpenDialog(win, {
     properties: ['openFile', 'multiSelections'],
@@ -111,30 +71,30 @@ ipcMain.handle('select-music-dir', async () => {
   
   if (result.canceled) return [];
   
-  return result.filePaths.map(filePath => {
-    return {
-      name: path.basename(filePath),
-      path: filePath,
-      nativeUrl: `atom://` + filePath
-    };
-  });
+  const parsedFiles = [];
+  for (const filePath of result.filePaths) {
+    try {
+      const fileName = path.basename(filePath);
+      const ext = path.extname(filePath).replace('.', '');
+      
+      // Read file into raw memory buffer
+      const fileBuffer = fs.readFileSync(filePath);
+      // Turn raw buffer into direct streamable audio string
+      const base64Audio = `data:audio/${ext === 'mp3' ? 'mpeg' : ext};base64,${fileBuffer.toString('base64')}`;
+
+      parsedFiles.push({
+        name: fileName,
+        path: filePath,
+        audioDataUrl: base64Audio
+      });
+    } catch (err) {
+      console.error("Failed to extract data for file:", filePath, err);
+    }
+  }
+  return parsedFiles;
 });
 
 app.whenReady().then(() => {
-  const { protocol } = require('electron');
-  protocol.registerFileProtocol('atom', (request, callback) => {
-    const url = request.url.substr(7);
-    callback({ path: path.normalize(decodeURIComponent(url)) });
-  });
-
-  app.commandLine.appendSwitch('disable-renderer-backgrounding');
-  app.commandLine.appendSwitch('disable-background-timer-throttling');
   createWindow();
-
-  globalShortcut.register('MediaPlayPause', () => { win?.webContents.send('media-command', 'play-pause'); });
-  globalShortcut.register('MediaNextTrack', () => { win?.webContents.send('media-command', 'next'); });
-  globalShortcut.register('MediaPreviousTrack', () => { win?.webContents.send('media-command', 'prev'); });
 });
-
-app.on('will-quit', () => { globalShortcut.unregisterAll(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
