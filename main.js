@@ -86,8 +86,8 @@ ipcMain.on('update-rpc', (event, track) => {
   if (track && track.isPlaying) {
     rpc.setActivity({
       type: 2,                                     
-      details: `${track.title} — ${track.artist}`, 
-      state: `Overdriven Deck Stack`,             
+      details: `${track.title} // ${track.artist}`, 
+      state: `${track.album}`,             
       largeImageKey: 'quellqa_logo',
       largeImageText: 'Quellqa VERSION X',
       instance: false,
