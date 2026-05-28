@@ -1,21 +1,22 @@
-const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const DiscordRPC = require('discord-rpc');
 
 let win;
-const clientId = '1508392537914871838'; // Your specific corporate registration ID
+const clientId = '1508392537914871838'; 
 
 function createWindow() {
   win = new BrowserWindow({
     width: 980,
-    height: 600,
-    title: "QUELLQA",
+    height: 620,
+    title: "Quellqa",
     frame: false,
     resizable: true,
     backgroundColor: '#000000',
     webPreferences: {
       nodeIntegration: true,
-      contextIsolation: false
+      contextIsolation: false,
+      webSecurity: false // Necessary to stream direct disk paths safely across app restarts
     }
   });
 
@@ -51,7 +52,7 @@ function setThumbarButtons(isPlaying) {
       }
     ]);
   } catch (e) {
-    console.error("Taskbar Thumbar configuration failed:", e);
+    console.error("Taskbar buttons configuration failed:", e);
   }
 }
 
@@ -66,14 +67,14 @@ ipcMain.on('sync-native-media', (event, data) => {
   setThumbarButtons(data.isPlaying);
 });
 
-// ================= DISCORD TELEMETRY MATRIX BACKGROUND NODE =================
+// ================= DISCORD TELEMETRY MATRIX BACKBONE =================
 const rpc = new DiscordRPC.Client({ transport: 'ipc' });
 
 function setInitialPresence() {
   if (!rpc) return;
   rpc.setActivity({
-    details: 'Browsing',
-    state: 'Quellqa',
+    details: 'Browsing Music Library',
+    state: 'VERSION X // Uncapped Engine',
     largeImageKey: 'quellqa_logo',
     instance: false,
   }).catch(() => {});
@@ -84,14 +85,14 @@ ipcMain.on('update-rpc', (event, track) => {
   
   if (track && track.isPlaying) {
     rpc.setActivity({
-      type: 2,                                     // Activity code forced to "Listening to..."
-      details: `${track.title} — ${track.artist}`,
-      state: `Album: ${track.album}`,             
+      type: 2,                                     
+      details: `${track.title} — ${track.artist}`, 
+      state: `Overdriven Deck Stack`,             
       largeImageKey: 'quellqa_logo',
-      largeImageText: 'Quellqa Audio Subsystem v8.5',
+      largeImageText: 'Quellqa VERSION X',
       instance: false,
     }).catch((err) => {
-      console.error("Discord presence injection failed:", err);
+      console.error("Discord presence update failed:", err);
     });
   } else {
     setInitialPresence();
@@ -99,9 +100,33 @@ ipcMain.on('update-rpc', (event, track) => {
 });
 
 rpc.on('ready', () => { setInitialPresence(); });
-rpc.login({ clientId }).catch(() => console.log("Discord Client Link Standby..."));
+rpc.login({ clientId }).catch(() => console.log("Discord link standby..."));
+
+// ================= LOCAL RESTARTS SOURCE FILE HANDLER =================
+ipcMain.handle('select-music-dir', async () => {
+  const result = await dialog.showOpenDialog(win, {
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Audio Files', extensions: ['mp3', 'wav', 'flac', 'm4a'] }]
+  });
+  
+  if (result.canceled) return [];
+  
+  return result.filePaths.map(filePath => {
+    return {
+      name: path.basename(filePath),
+      path: filePath,
+      nativeUrl: `atom://` + filePath
+    };
+  });
+});
 
 app.whenReady().then(() => {
+  const { protocol } = require('electron');
+  protocol.registerFileProtocol('atom', (request, callback) => {
+    const url = request.url.substr(7);
+    callback({ path: path.normalize(decodeURIComponent(url)) });
+  });
+
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
   app.commandLine.appendSwitch('disable-background-timer-throttling');
   createWindow();
