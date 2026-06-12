@@ -1,4 +1,4 @@
-name: Build Quellqa Desktop
+name: Build LarpMedia
 on: [push]
 
 jobs:
@@ -28,5 +28,5 @@ jobs:
       - name: Upload Finished App
         uses: actions/upload-artifact@v4
         with:
-          name: Quellqa-Desktop-Windows
+          name: LarpMediaTheSigma
           path: dist/*.exe
