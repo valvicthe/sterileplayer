@@ -1,9 +1,9 @@
 {
   "name": "larpmedia",
-  "version": "11.0.0",
+  "version": "1.0.0",
   "main": "main.js",
   "description": "LARPMEDIA",
-  "author": "ValorieMcFlurry",
+  "author": "Valorie",
   "type": "commonjs",
   "scripts": {
     "dev": "vite",
