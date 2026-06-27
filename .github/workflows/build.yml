@@ -1,4 +1,4 @@
-name: Build LarpMedia
+name: Build sterile
 on: [push]
 
 jobs:
@@ -28,5 +28,5 @@ jobs:
       - name: Upload Finished App
         uses: actions/upload-artifact@v4
         with:
-          name: LarpMediaTheSigma
+          name: sterile-binary-windows
           path: dist/*.exe
