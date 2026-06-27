@@ -21,7 +21,7 @@ interface AlbumGroup {
 
 type ThemeName = 'industrial' | 'lean' | 'red' | 'gloop' | 'light';
 
-export default function Sterile() {
+export default function LarpMedia() {
   const [activeTab, setActiveTab] = useState<'playing' | 'library'>('library');
   const [masterTracks, setMasterTracks] = useState<Track[]>([]);
   const [activeQueue, setActiveQueue] = useState<Track[]>([]);
