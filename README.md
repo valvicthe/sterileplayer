@@ -1,4 +1,4 @@
-# sterile
+# sterile v1
 A very simple audio player for people who want a full eq and preamp. Based off of my old project "Quellqa" or "LarpMedia".
 
 ## features
