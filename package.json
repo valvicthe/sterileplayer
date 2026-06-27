@@ -1,8 +1,8 @@
 {
-  "name": "larpmedia",
+  "name": "sterile",
   "version": "1.0.0",
   "main": "main.js",
-  "description": "LARPMEDIA",
+  "description": "sterile",
   "author": "Valorie",
   "type": "commonjs",
   "scripts": {
@@ -27,8 +27,8 @@
     "vite": "^5.3.1"
   },
   "build": {
-    "appId": "com.larp.media",
-    "productName": "LARPMEDIA",
+    "appId": "com.larp.sterile",
+    "productName": "sterile",
     "files": [
       "dist-web/**/*",
       "main.js",
